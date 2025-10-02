@@ -22,7 +22,20 @@ android {
         jniLibs.useLegacyPackaging true
     }
 }
+repositories {
+    mavenCentral()     // <- keep this
+    google()
+    maven { url = 'https://maven.brott.dev/' } // ok to keep if you use RoadRunner
+}
 
 dependencies {
     implementation project(':FtcRobotController')
+
+    // Your other libs...
+    implementation "com.acmerobotics.roadrunner:ftc:0.1.23"
+    implementation "com.acmerobotics.roadrunner:core:1.0.1"
+    implementation "com.acmerobotics.roadrunner:actions:1.0.1"
+    implementation "com.acmerobotics.dashboard:dashboard:0.4.17"
+
+
 }
