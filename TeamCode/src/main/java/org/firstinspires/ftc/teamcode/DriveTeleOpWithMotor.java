@@ -46,10 +46,10 @@ public class DriveTeleOpWithMotor extends LinearOpMode {
 
             // Motor control logic
             if (gamepad1.right_trigger > 0.1) {
-                intakeMotor.setPower(-1.0);       // intake forward
-                launcherMotor.setPower(1.0);    // launcher reverse
+                intakeMotor.setPower(0.30);       // intake forward port 0
+                launcherMotor.setPower(1.00);    // launcher reverse port 1
             } else if (gamepad1.left_trigger > 0.1) {
-                intakeMotor.setPower(-1.0);      // intake forward
+                intakeMotor.setPower(1.0);      // intake forward
                 launcherMotor.setPower(0.0);     // launcher off
             } else {
                 intakeMotor.setPower(0.0);

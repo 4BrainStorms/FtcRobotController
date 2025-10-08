@@ -10,6 +10,34 @@ To use this Android Studio project, you will need Android Studio Ladybug (2024.2
 
 To program your robot in Blocks or OnBot Java, you do not need Android Studio.
 
+### Vision Separation Strategy (Team Customization)
+This fork/configuration designates clear roles for vision components:
+
+* Limelight 3A: AprilTag-only duties (fiducial localization, Tag24 alignment, pose correction).
+* USB Webcam + OpenCV (`ArtifactColorProcessor` + `FindPurpleGreenArtifactColor`): Artifact (purple/green) detection & approach.
+
+Why this separation?
+* Avoids Limelight pipeline switching latency or stale frames during autonomous.
+* Allows rapid HSV tuning via FTC Dashboard without redeploying Limelight pipelines.
+* Keeps Limelight free for future advanced multi-tag localization or scoring alignment.
+
+Archived Reference:
+* `Archive/FindArtifactLimelightPipeline4.java` preserves an experimental Limelight artifact auton (annotation removed) if you ever benchmark color vs. Limelight pipelines.
+
+If you later decide to time-slice (one Limelight for both roles), implement a pipeline scheduler that caches last good AprilTag pose and enforces a minimum dwell time between switches.
+
+### Experimental: Pedro Pathing Integration (Planned)
+This codebase currently uses Road Runner for trajectory generation. A scaffold is being added under `teamcode/pedro/` to experiment with Pedro Pathing without disturbing existing RR code.
+
+High-level plan:
+1. Add Pedro dependency (manual step – see comments in `pedro/PedroDrive.java`).
+2. Mirror current `MecanumDrive` pose + drive power API for easier A/B testing.
+3. Provide a sample autonomous `PedroStraightTest` that runs a simple path (forward, strafe, turn) equivalent to a basic RR sequence.
+4. Add timing & pose telemetry comparison versus RR run.
+
+Until the actual Pedro library is added, the sample autonomous compiles with stubbed interfaces so it won’t break the build.
+
+
 ## Getting Started
 If you are new to robotics or new to the *FIRST* Tech Challenge, then you should consider reviewing the [FTC Blocks Tutorial](https://ftc-docs.firstinspires.org/programming_resources/blocks/Blocks-Tutorial.html) to get familiar with how to use the control system:
 

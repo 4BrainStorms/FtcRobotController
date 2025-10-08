@@ -3,8 +3,7 @@ package org.firstinspires.ftc.teamcode.vision;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.vision.VisionPortal;
-import org.firstinspires.ftc.vision.tfod.Recognition;
-import org.firstinspires.ftc.vision.tfod.TfodProcessor;
+// No direct TFOD imports; use reflection so code compiles even if tfod classes absent in environment.
 
 import java.util.List;
 
@@ -19,32 +18,36 @@ public class ArtifactVisionBase {
             "green", "purple", "robot"
     };
 
-    private TfodProcessor tfodProcessor;
+    private Object tfodProcessor; // reflection handle (org.firstinspires.ftc.vision.tfod.TfodProcessor)
     private VisionPortal visionPortal;
 
     public ArtifactVisionBase(HardwareMap hardwareMap) {
-        // Build TFOD for a custom model
-        TfodProcessor.Builder tfodBuilder = new TfodProcessor.Builder()
-                .setModelFileName(MODEL_FILE)
-                // If you create assets/labels.txt, use .setModelLabelsFile("labels.txt") instead:
-                .setModelLabels(LABELS)
-                // Common model input sizes are 300/320/640 — set to what your model expects:
-                .setModelInputSize(320)
-                .setIsModelTensorFlow2(true)
-                .setUseObjectTracker(true)
-                .setNumExecutorThreads(2)
-                .setMinResultConfidence(0.55f);
+        try {
+            Class<?> procClazz = Class.forName("org.firstinspires.ftc.vision.tfod.TfodProcessor");
+            Class<?> builderClazz = Class.forName("org.firstinspires.ftc.vision.tfod.TfodProcessor$Builder");
+            Object builder = builderClazz.getConstructor().newInstance();
+            builderClazz.getMethod("setModelFileName", String.class).invoke(builder, MODEL_FILE);
+            builderClazz.getMethod("setModelLabels", String[].class).invoke(builder, (Object) LABELS);
+            builderClazz.getMethod("setModelInputSize", int.class).invoke(builder, 320);
+            builderClazz.getMethod("setIsModelTensorFlow2", boolean.class).invoke(builder, true);
+            builderClazz.getMethod("setUseObjectTracker", boolean.class).invoke(builder, true);
+            builderClazz.getMethod("setNumExecutorThreads", int.class).invoke(builder, 2);
+            builderClazz.getMethod("setMinResultConfidence", float.class).invoke(builder, 0.55f);
+            tfodProcessor = builderClazz.getMethod("build").invoke(builder);
 
-        tfodProcessor = tfodBuilder.build();
+            visionPortal = new VisionPortal.Builder()
+                    .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                    .addProcessor((org.firstinspires.ftc.vision.VisionProcessor) tfodProcessor)
+                    .enableLiveView(true)
+                    .build();
 
-        // Use your USB webcam name exactly as in the RC configuration ("Webcam 1" is typical)
-        visionPortal = new VisionPortal.Builder()
-                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .addProcessor(tfodProcessor)
-                .enableLiveView(true) // viewable from DS (⋮ → Camera Stream)
-                .build();
-
-        tfodProcessor.setActivated(true);
+            procClazz.getMethod("setActivated", boolean.class).invoke(tfodProcessor, true);
+        } catch (ClassNotFoundException e) {
+            // TFOD not present; leave tfodProcessor null
+        } catch (Throwable t) {
+            // Any other failure: null out so callers see no recognitions
+            tfodProcessor = null;
+        }
     }
 
     public void close() {
@@ -55,18 +58,35 @@ public class ArtifactVisionBase {
     }
 
     /** Get all recognitions this frame (may be empty). */
-    public List<Recognition> getRecognitions() {
-        return (tfodProcessor != null) ? tfodProcessor.getRecognitions() : null;
+    @SuppressWarnings("unchecked")
+    public List<?> getRecognitions() {
+        if (tfodProcessor == null) return null;
+        try {
+            return (List<?>) tfodProcessor.getClass().getMethod("getRecognitions").invoke(tfodProcessor);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     /** Best label by confidence or "none". */
     public String getTopLabel() {
-        List<Recognition> recs = getRecognitions();
+        List<?> recs = getRecognitions();
         if (recs == null || recs.isEmpty()) return "none";
-        Recognition best = recs.get(0);
-        for (Recognition r : recs) {
-            if (r.getConfidence() > best.getConfidence()) best = r;
+        Object best = recs.get(0);
+        float bestConf = getFloat(best, "getConfidence");
+        for (Object r : recs) {
+            float c = getFloat(r, "getConfidence");
+            if (c > bestConf) { best = r; bestConf = c; }
         }
-        return best.getLabel() != null ? best.getLabel() : "none";
+        String label = getString(best, "getLabel");
+        return label != null ? label : "none";
+    }
+
+    // --- small reflection helpers ---
+    private static float getFloat(Object o, String m) {
+        try { return (Float)o.getClass().getMethod(m).invoke(o); } catch (Throwable t){ return 0f; }
+    }
+    private static String getString(Object o, String m) {
+        try { Object v = o.getClass().getMethod(m).invoke(o); return v!=null? v.toString():null; } catch (Throwable t){ return null; }
     }
 }
